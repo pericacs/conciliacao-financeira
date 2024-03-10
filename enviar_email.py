@@ -27,14 +27,14 @@ def enviar_email(destinatario, assunto, mensagem, arquivo_anexo):
     msg.attach(MIMEText(mensagem, 'plain'))
 
     # Adicionar o arquivo Excel como anexo    
-
-    filename = os.path.basename(arquivo_anexo)
-    attachment = open(arquivo_anexo, 'rb')  
-    part = MIMEBase('application', "octet-stream")
-    part.set_payload(attachment.read())
-    encoders.encode_base64(part)
-    part.add_header('Content-Disposition', f'attachment; filename="{filename}"')    
-    msg.attach(part)
+    if arquivo_anexo != '':
+        filename = os.path.basename(arquivo_anexo)
+        attachment = open(arquivo_anexo, 'rb')  
+        part = MIMEBase('application', "octet-stream")
+        part.set_payload(attachment.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')    
+        msg.attach(part)
 
     # Iniciar uma conexão SMTP
     server = smtplib.SMTP(smtp_host, smtp_port)

@@ -7,46 +7,83 @@ from enviar_email import enviar_email
 
 load_dotenv()
 
-def executar_passos_conciliacao():
-    # Acessar as variáveis de ambiente
+# excluir arquivos temporários
+def excluir_arquivo(caminho_arquivo):
+    # Tente excluir o arquivo
+    try:
+        os.remove(caminho_arquivo)
+        print(f"O arquivo '{caminho_arquivo}' foi excluído com sucesso.")
+    except OSError as e:
+        print(f"Erro ao excluir o arquivo: {e}")
 
-                
+# Acessar as variáveis de ambiente
+def conexao():
     load_dotenv()
-
     dbname = os.getenv('DB_NAME')
     user = os.getenv('DB_USER')
     password = os.getenv('DB_PASSWORD')
     host = os.getenv('DB_HOST')
     port = os.getenv('DB_PORT')
-
     srv2 = psycopg2.connect(
-        dbname=dbname,
-        user=user,
-        password=password,
-        host=host,
-        port=port
-    )
+            dbname=dbname,
+            user=user,
+            password=password,
+            host=host,
+            port=port
+        )
+    return srv2 
+
+def executar_passos_conciliacao():
+    
+    step1 = conciliacao_boletos_arbi()
+    step2 = conciliar_boletos_migrados()
+    step3 = conciliar_boletos_ccb()
+    step4 = conciliar_boletos_titulos_d1()
+    step5 = conciliar_titulos()
+    
+    destinatario = ["carlos.andre@fastconnect.com.br", "lupssouza@gmail.com", "juridico@fastconnect.com.br", "joice.rosario@alibin.com.br"] 
+    # destinatario = "carlos.andre@fastconnect.com.br, pericacs@gmail.com" 
+    relatorio_diario_antecipacao()    
+    assunto = 'Relatório de Conciliação das Antecipações Diárias'
+    mensagem = 'Segue em anexo o relatório de conciliação diária das antecipações em formato Excel.'
+    arquivo_anexo = "C:\\PYTHON\\conciliacao-financeira\\arquivo\\Conciliacao_Diaria_Antecipacao.xlsx"
+    enviar_email(destinatario, assunto, mensagem, arquivo_anexo)
+    excluir_arquivo(arquivo_anexo)
+
+    relatorio_diario()
+    assunto = 'Relatório de Conciliação Diária'
+    mensagem = 'Segue em anexo o relatório de conciliação diária em formato Excel.'
+    arquivo_anexo = "C:\\PYTHON\\conciliacao-financeira\\arquivo\\Conciliacao_Diaria.xlsx"
+    enviar_email(destinatario, assunto, mensagem, arquivo_anexo)
+    excluir_arquivo(arquivo_anexo)
 
 
-    if conciliacao_boletos_arbi():
-        if conciliar_boletos_migrados(srv2):
-            conciliar_boletos_ccb(srv2)
-            conciliar_boletos_titulos_d1(srv2)
-            conciliar_titulos(srv2)
-            if conciliar_titulos(srv2):             
-                destinatario = ["carlos.andre@fastconnect.com.br", "lupssouza@gmail.com", "juridico@fastconnect.com.br", "joice.rosario@alibin.com.br"] 
-                # destinatario = "carlos.andre@fastconnect.com.br, pericacs@gmail.com, lupssouza@gmail.com, juridico@fastconnect.com.br, joicezaffari@gmail.com, pericacs@yahoo.com.br" 
-                relatorio_diario_antecipacao(srv2)    
-                assunto = 'Relatório de Conciliação das Antecipações Diárias'
-                mensagem = 'Segue em anexo o relatório de conciliação diária das antecipações em formato Excel.'
-                arquivo_anexo = "C:\\PYTHON\\Conciliacao-Cielo\\arquivo\\Conciliacao_Diaria_Antecipacao.xlsx"
-                enviar_email(destinatario, assunto, mensagem, arquivo_anexo) 
+    # step1 = 'step2'
+    # step2 = 'step2'
+    # step3 = 'step2'
+    # step4 = 'step2'
+    # step5 = 'step2'
+    
 
-                relatorio_diario(srv2)
-                assunto = 'Relatório de Conciliação Diária'
-                mensagem = 'Segue em anexo o relatório de conciliação diária em formato Excel.'
-                arquivo_anexo = "C:\\PYTHON\\Conciliacao-Cielo\\arquivo\\Conciliacao_Diaria.xlsx"
-                enviar_email(destinatario, assunto, mensagem, arquivo_anexo)  
+    assunto = 'Relatório :: Resultado das Funções'
+    mensagem = f"""
+    
+                    conciliacao_boletos_arbi :: "{step1}" 
+                    
+                    conciliar_boletos_migrados :: "{step2}"
+                    
+                    conciliar_boletos_ccb :: "{step3}"
+                    
+                    conciliar_boletos_titulos_d1 :: "{step4}"
+                    
+                    conciliar_titulos :: "{step5}"
+
+                """
+    destinatario = "carlos.andre@fastconnect.com.br, pericacs@gmail.com"
+    arquivo_anexo = ''
+    enviar_email(destinatario, assunto, mensagem, arquivo_anexo)  
+
+
 
 """
     As operações aqui não realizadas na Base de dados :: db_pagamentos.
@@ -72,7 +109,8 @@ def conciliacao_boletos_arbi():
     )    
 
     cur = srv1.cursor()
-    cur.execute("select FUNC_CONCILIAR_WEBHOOK_ARBI_TABLE()")
+    cur.execute("select func_conciliar_webhook_arbi_table()")
+    srv1.commit()
     result = cur.fetchone()    
     print(result)
     cur.close()
@@ -83,46 +121,55 @@ def conciliacao_boletos_arbi():
     depois de limpa as informações enviadas pelo banco arbi ao banco de dados :: db_pagamentos,
     trazemos os dados para a base de dados :: fpay.
 """
-def conciliar_boletos_migrados(conn):
+def conciliar_boletos_migrados():
+    conn = conexao()
     cur = conn.cursor()
     cur.execute("select transferir_dados_conciliacao_arbi_boletos()")    
+    conn.commit()
     result = cur.fetchone()
     print(result)
     cur.close()
-    # conn.close()
+    conn.close()
     return result
 
 # função para identifica quais titulos foram antecipados e ajusta seus valores para repasse
-def conciliar_boletos_ccb(conn):
+def conciliar_boletos_ccb():
+    conn = conexao()
     cur = conn.cursor()
     cur.execute("select func_conciliar_ccb()")
+    conn.commit()
     result = cur.fetchone()
     print(result)
     cur.close()
-    # conn.close()
+    conn.close()
     return result
 
 # função para pegar os títulos dos boletos do dia e adicionar 1 dia a mais para o repasse aos clientes
-def conciliar_boletos_titulos_d1(conn):
+def conciliar_boletos_titulos_d1():
+    conn = conexao()
     cur = conn.cursor()
     cur.execute("select conciliar_titulos_d1_arbi()")
+    conn.commit()
     result = cur.fetchone()
     print(result)
     cur.close()
-    # conn.close()
+    conn.close()
     return result
 
 #  concilia os titulos diários, atualizando conforme os arquivos recebidos dos bancos e adquirentes de cartão
-def conciliar_titulos(conn):
+def conciliar_titulos():
+    conn = conexao()
     cur = conn.cursor()
     cur.execute("select func_conciliar()")    
+    conn.commit()
     result = cur.fetchone()
     print(result)
     cur.close()
-    # conn.close()
+    conn.close()
     return result
 
-def relatorio_diario_antecipacao(conn):
+def relatorio_diario_antecipacao():
+    conn = conexao()
     sql  = """
         select 
             dr.id_venda as venda,
@@ -140,8 +187,7 @@ def relatorio_diario_antecipacao(conn):
         from dw_recebiveis dr 
         join parcela p on dr.id_parcela = p.id_parcela
         join adquirente a on a.id_adquirente = p.id_adquirente 
-        where 
-            --coalesce (dr.dt_recebimento, dr.dt_prevista) between date_trunc('day', current_date - INTERVAL'1 day') and cast(to_char(current_date - INTERVAL'1 day', 'YYYY-MM-DD') ||' 23:59:59' as timestamp)
+        where             
             coalesce (dr.dt_recebimento, dr.dt_prevista) between date_trunc('day', current_date) and cast(to_char(current_date, 'YYYY-MM-DD') ||' 23:59:59' as timestamp)	
             and id_tipo_antecipacao is not null
             and (tp_recorrencia not like 'R' or tp_recorrencia is null)
@@ -155,7 +201,7 @@ def relatorio_diario_antecipacao(conn):
     print(total_consultados)
 
     df = pd.read_sql_query(sql, conn)
-    # conn.close()    
+    conn.close()    
     nome_arquivo_excel = 'arquivo/Conciliacao_Diaria_Antecipacao.xlsx'
     df.to_excel(nome_arquivo_excel, index=False)
 
@@ -164,7 +210,8 @@ def relatorio_diario_antecipacao(conn):
    
 
 
-def relatorio_diario(conn):
+def relatorio_diario():
+    conn = conexao()
     sql  = """
         select  
     	    dr.id_venda,
@@ -207,6 +254,7 @@ def relatorio_diario(conn):
     """
 
     cursor = conn.cursor()
+
     cursor.execute(sql)
     total_consultados = cursor.rowcount 
     print(total_consultados)
@@ -217,3 +265,6 @@ def relatorio_diario(conn):
     df.to_excel(nome_arquivo_excel, index=False)
 
     print(f'Arquivo Excel "{nome_arquivo_excel}" gerado com sucesso.')
+
+
+    

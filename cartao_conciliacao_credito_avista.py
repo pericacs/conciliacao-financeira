@@ -36,7 +36,7 @@ def conciliar_cav_venda_credito():
             , t.id_venda
             , t.id_parcela
         FROM webhook_cielo_table_log wctl
-        LEFT JOIN transacao t ON wctl.ds_tid||wctl.ds_arp||wctl.ds_nsu = t.ds_tid||t.ds_arp||t.ds_nsu
+        LEFT JOIN transacao t ON wctl.ds_tid||LPAD(wctl.ds_arp::text, 6, '0')||LPAD(wctl.ds_nsu::text, 6, '0') = t.ds_tid||t.ds_arp||t.ds_nsu
         WHERE 
 	        wctl.nm_forma_pagamento = 'Credito a vista' 
 	        AND wctl.tp_lancamento = 'Venda credito' 
@@ -66,10 +66,10 @@ def update_cav_venda_credito(conn, dt_pagamento, vl_liquido, nu_taxa, nm_forma_p
     cursor_u = conn.cursor()
 
     if ds_tid != '':
-        join = " wctl.ds_tid||wctl.ds_arp||wctl.ds_nsu = t.ds_tid||t.ds_arp||t.ds_nsu "
+        join = " wctl.ds_tid||LPAD(wctl.ds_arp::text, 6, '0')||LPAD(wctl.ds_nsu::text, 6, '0') = t.ds_tid||t.ds_arp||t.ds_nsu "
         filtro = " and wctl.ds_canal_venda not in ('TEF') "
     else:
-        join = " wctl.ds_arp||wctl.ds_nsu = t.ds_arp||t.ds_nsu "
+        join = " wLPAD(wctl.ds_arp::text, 6, '0')||LPAD(wctl.ds_nsu::text, 6, '0') = t.ds_arp||t.ds_nsu "
         filtro = " and wctl.ds_canal_venda in ('TEF' ) "
 
 # --ex_dt_prevista_recebimento = CAST(%s AS TIMESTAMP)
@@ -114,6 +114,7 @@ def update_wh_cielo_table_log(conn, nm_forma_pagamento, tp_lancamento, ds_tid, d
             and ds_tid = %s
             and ds_arp = %s
             and ds_nsu = %s
+            and tp_conciliado = false
 
         """
           
